@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Electricity Consumption - Our World in Data</title>
+    
+    <!-- Google AdSense Placeholder -->
+    <!-- 
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
+    -->
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent-color: #38bdf8;
+            --font-main: 'Inter', sans-serif;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            overflow: hidden;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100vw;
+            background: var(--bg-color);
+        }
+
+        .header {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(8px);
+            padding: 12px 24px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .header p {
+            margin: 4px 0 0;
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        /* Info Box */
+        .info {
+            padding: 12px 16px;
+            font: 14px/16px var(--font-main);
+            background: rgba(30, 41, 59, 0.9);
+            color: var(--text-color);
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .info h4 {
+            margin: 0 0 5px;
+            color: var(--accent-color);
+        }
+
+        /* Legend */
+        .legend {
+            line-height: 18px;
+            color: var(--text-color);
+            padding: 12px;
+            background: rgba(30, 41, 59, 0.9);
+            backdrop-filter: blur(4px);
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.7;
+            border-radius: 2px;
+        }
+
+        /* Loading Overlay */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(56, 189, 248, 0.1);
+            border-top: 4px solid var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #loader p {
+            margin-top: 16px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <p>Loading Data...</p>
+    </div>
+
+    <div class="header">
+        <h1>Per Capita Electricity Consumption</h1>
+        <p>Data Source: Our World in Data (Kilowatt-hours)</p>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <script>
+        const OWID_DATA_URL = 'https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv';
+        const GEOJSON_URL = 'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson';
+
+        // Initialize Map
+        const map = L.map('map', {
+            center: [20, 0],
+            zoom: 2.5,
+            zoomControl: false,
+            minZoom: 2,
+            maxBounds: [[-90, -180], [90, 180]]
+        });
+
+        // Add Zoom Control to bottom right
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        // Dark Base Layer
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // Control that shows state info on hover
+        const info = L.control();
+
+        info.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+
+        info.update = function (props) {
+            const value = props ? (props.value ? d3.format(",.1f")(props.value) + " kWh" : "No data") : "Hover over a country";
+            this._div.innerHTML = `<h4>Electricity Use (Per Capita)</h4>` + 
+                (props ? `<b>${props.name}</b><br />${value}` : 'Hover over a country');
+        };
+
+        info.addTo(map);
+
+        // Color Scale (kWh per capita)
+        // 0-1k, 1k-2.5k, 2.5k-5k, 5k-10k, 10k-15k, 15k-25k, 25k+
+        function getColor(d) {
+            return d > 25000 ? '#08306b' :
+                   d > 15000 ? '#08519c' :
+                   d > 10000 ? '#2171b5' :
+                   d > 5000  ? '#4292c6' :
+                   d > 2500  ? '#6baed6' :
+                   d > 1000  ? '#9ecae1' :
+                   d > 0     ? '#c6dbef' :
+                               '#334155'; // Darker for no data
+        }
+
+        function style(feature) {
+            return {
+                fillColor: getColor(feature.properties.value),
+                weight: 1,
+                opacity: 1,
+                color: 'rgba(255,255,255,0.2)',
+                fillOpacity: 0.8
+            };
+        }
+
+        function highlightFeature(e) {
+            const layer = e.target;
+
+            layer.setStyle({
+                weight: 2,
+                color: '#666',
+                dashArray: '',
+                fillOpacity: 1
+            });
+
+            layer.bringToFront();
+            info.update(layer.feature.properties);
+        }
+
+        let geojson;
+
+        function resetHighlight(e) {
+            geojson.resetStyle(e.target);
+            info.update();
+        }
+
+        function onEachFeature(feature, layer) {
+            layer.on({
+                mouseover: highlightFeature,
+                mouseout: resetHighlight
+            });
+        }
+
+        async function init() {
+            try {
+                // Load Data
+                const [geoData, csvData] = await Promise.all([
+                    d3.json(GEOJSON_URL),
+                    d3.csv(OWID_DATA_URL)
+                ]);
+
+                // Filter for latest year with data and create a lookup
+                // Countries like USA, CHN, etc.
+                const electricityData = new Map();
+                
+                // Get most recent year for each country
+                csvData.forEach(d => {
+                    const value = parseFloat(d.per_capita_electricity);
+                    if (!isNaN(value)) {
+                        const year = parseInt(d.year);
+                        const current = electricityData.get(d.iso_code);
+                        if (!current || year > current.year) {
+                            electricityData.set(d.iso_code, { value, year });
+                        }
+                    }
+                });
+
+                // Map CSV data to GeoJSON
+                geoData.features.forEach(feature => {
+                    // Match by ISO code (some GeoJSON use iso_a3, some id, some ISO_A3)
+                    const iso = feature.id || feature.properties.iso_a3 || feature.properties.ISO_A3;
+                    const data = electricityData.get(iso);
+                    feature.properties.value = data ? data.value : null;
+                });
+
+                geojson = L.geoJson(geoData, {
+                    style: style,
+                    onEachFeature: onEachFeature
+                }).addTo(map);
+
+                // Add Legend
+                const legend = L.control({ position: 'bottomleft' });
+
+                legend.onAdd = function (map) {
+                    const div = L.DomUtil.create('div', 'info legend');
+                    const grades = [0, 1000, 2500, 5000, 10000, 15000, 25000];
+                    const labels = [];
+
+                    div.innerHTML += '<div style="margin-bottom: 8px; font-weight: bold;">kWh / person</div>';
+
+                    for (let i = 0; i < grades.length; i++) {
+                        div.innerHTML +=
+                            '<i style="background:' + getColor(grades[i] + 1) + '"></i> ' +
+                            grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+                    }
+
+                    return div;
+                };
+
+                legend.addTo(map);
+
+                // Hide Loader
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loader').style.display = 'none';
+                }, 500);
+
+            } catch (error) {
+                console.error("Error loading data:", error);
+                document.getElementById('loader').innerHTML = `<p style="color: #ef4444">Failed to load data. Please refresh.</p>`;
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
