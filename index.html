@@ -456,9 +456,28 @@
         };
 
         info.update = function (props) {
-            const value = props ? (props.value ? d3.format(",.1f")(props.value) + " kWh" : "No data") : "Hover over a country";
-            this._div.innerHTML = `<h4>Electricity Use (Per Capita)</h4>` + 
-                (props ? `<b>${props.name}</b><br />${value}` : 'Hover over a country');
+            if (props && props.value) {
+                const val = props.value;
+                const formattedVal = d3.format(",.1f")(val) + " kWh";
+                
+                // Fun conversions:
+                // 1 kWh = ~60 iPhone charges
+                // 1 kWh = ~6.5 km of driving in a Tesla Model 3
+                const iphones = Math.round(val * 60).toLocaleString();
+                const teslaKm = Math.round(val * 6.5).toLocaleString();
+
+                this._div.innerHTML = `<h4>Electricity Use (Per Capita)</h4>
+                    <b>${props.name}</b><br />
+                    <span style="font-size: 1.2rem; color: var(--accent-color); font-weight: bold;">${formattedVal}</span>
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 0.85rem; line-height: 1.4; opacity: 0.9;">
+                        <span style="display:block; margin-bottom: 4px;">📱 <b>${iphones}</b> iPhone charges</span>
+                        <span style="display:block;">🚗 <b>${teslaKm} km</b> in a Tesla</span>
+                    </div>`;
+            } else if (props) {
+                this._div.innerHTML = `<h4>Electricity Use (Per Capita)</h4><b>${props.name}</b><br />No data`;
+            } else {
+                this._div.innerHTML = `<h4>Electricity Use (Per Capita)</h4>Hover over a country`;
+            }
         };
 
         info.addTo(map);
