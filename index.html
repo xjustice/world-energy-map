@@ -281,7 +281,7 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
 
     <script>
-        const OWID_DATA_URL = 'https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv';
+        const OWID_DATA_URL = 'data.json';
         const GEOJSON_URL = 'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson';
 
         // Initialize Map
@@ -375,26 +375,13 @@
         async function init() {
             try {
                 // Load Data
-                const [geoData, csvData] = await Promise.all([
+                const [geoData, electricityDataObj] = await Promise.all([
                     d3.json(GEOJSON_URL),
-                    d3.csv(OWID_DATA_URL)
+                    d3.json(OWID_DATA_URL)
                 ]);
 
-                // Filter for latest year with data and create a lookup
-                // Countries like USA, CHN, etc.
-                const electricityData = new Map();
-                
-                // Get most recent year for each country
-                csvData.forEach(d => {
-                    const value = parseFloat(d.per_capita_electricity);
-                    if (!isNaN(value)) {
-                        const year = parseInt(d.year);
-                        const current = electricityData.get(d.iso_code);
-                        if (!current || year > current.year) {
-                            electricityData.set(d.iso_code, { value, year });
-                        }
-                    }
-                });
+                // Convert JSON object to Map for easier lookup
+                const electricityData = new Map(Object.entries(electricityDataObj));
 
                 // Map CSV data to GeoJSON
                 geoData.features.forEach(feature => {
