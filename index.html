@@ -143,6 +143,57 @@
             padding-bottom: 12px;
         }
 
+        /* Hero Section */
+        .hero {
+            height: 100vh;
+            width: 100vw;
+            background: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)), url('hero_bg.png') no-repeat center center/cover;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 8vw, 4.5rem);
+            margin: 0;
+            background: linear-gradient(to bottom, #f8fafc, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .hero p {
+            font-size: clamp(1rem, 3vw, 1.25rem);
+            color: #94a3b8;
+            max-width: 600px;
+            margin: 24px 0 40px;
+            line-height: 1.6;
+        }
+
+        .btn-launch {
+            background: var(--accent-color);
+            color: #0f172a;
+            padding: 16px 40px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+            border: 2px solid transparent;
+        }
+
+        .btn-launch:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.6);
+            background: #7dd3fc;
+        }
+
         .info-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -261,17 +312,25 @@
         <p>Loading Data...</p>
     </div>
 
-    <div class="data-info" id="year-label">Loading Year...</div>
+    <section class="hero">
+        <h1>Global Energy<br>Landscape</h1>
+        <p>Explore the evolution of electricity consumption across the globe. Interactive data visualization powered by Our World in Data.</p>
+        <a href="#map-container" class="btn-launch">Explore the Map</a>
+    </section>
 
-    <div class="header">
-        <h1>Per Capita Electricity Consumption</h1>
-        <p>Data Source: <a href="https://ourworldindata.org/energy" target="_blank">Our World in Data</a> (Kilowatt-hours)</p>
+    <div id="map-container" style="position: relative;">
+        <div class="data-info" id="year-label">Loading Year...</div>
+
+        <div class="header">
+            <h1>Per Capita Electricity Consumption</h1>
+            <p>Data Source: <a href="https://ourworldindata.org/energy" target="_blank">Our World in Data</a> (Kilowatt-hours)</p>
+        </div>
+
+        <div id="map"></div>
+        <a href="#about" class="scroll-hint">
+            Scroll Down for Details ↓
+        </a>
     </div>
-
-    <div id="map"></div>
-    <a href="#about" class="scroll-hint">
-        Scroll Down for Details ↓
-    </a>
 
     <section id="about" class="content-section">
         <h2>About This Project</h2>
