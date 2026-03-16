@@ -74,6 +74,32 @@
             opacity: 0.8;
         }
 
+        /* Scroll Down Hint */
+        .scroll-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            color: var(--text-color);
+            text-align: center;
+            animation: bounce 2s infinite;
+            cursor: pointer;
+            text-decoration: none;
+            background: rgba(30, 41, 59, 0.6);
+            padding: 8px 16px;
+            border-radius: 20px;
+            backdrop-filter: blur(4px);
+            font-size: 0.85rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateX(-50%) translateY(0);}
+            40% {transform: translateX(-50%) translateY(-10px);}
+            60% {transform: translateX(-50%) translateY(-5px);}
+        }
+
         /* About Section Styles */
         .content-section {
             max-width: 900px;
@@ -214,8 +240,11 @@
     </div>
 
     <div id="map"></div>
+    <a href="#about" class="scroll-hint">
+        Scroll Down for Details ↓
+    </a>
 
-    <section class="content-section">
+    <section id="about" class="content-section">
         <h2>About This Project</h2>
         <p>This interactive visualization provides a comprehensive look at global electricity consumption patterns. By analyzing per capita usage, we can better understand the energy disparities and developmental trends across different nations and regions.</p>
 
@@ -261,15 +290,16 @@
             zoom: 2.5,
             zoomControl: false,
             minZoom: 2,
-            maxBounds: [[-90, -180], [90, 180]]
+            maxBounds: [[-90, -180], [90, 180]],
+            scrollWheelZoom: false // Disable scroll zoom so users can scroll the page
         });
 
         // Add Zoom Control to bottom right
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // Dark Base Layer
+        // More reliable Dark Base Layer (using CartoDB Voyager or Positron alternative if Dark fails)
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
             subdomains: 'abcd',
             maxZoom: 20
         }).addTo(map);
@@ -368,9 +398,29 @@
 
                 // Map CSV data to GeoJSON
                 geoData.features.forEach(feature => {
-                    // Match by ISO code (some GeoJSON use iso_a3, some id, some ISO_A3)
-                    const iso = feature.id || feature.properties.iso_a3 || feature.properties.ISO_A3;
-                    const data = electricityData.get(iso);
+                    // Match by ISO code with fallbacks for different GeoJSON property names
+                    const iso = (feature.id || 
+                                 feature.properties.iso_a3 || 
+                                 feature.properties.ISO_A3 || 
+                                 feature.properties.code ||
+                                 feature.properties.GU_A3).toUpperCase();
+                    
+                    let data = electricityData.get(iso);
+                    
+                    // Special Handling for common mismatches
+                    if (!data) {
+                        const nameToIso = {
+                            "Norway": "NOR",
+                            "Russia": "RUS",
+                            "France": "FRA",
+                            "United States": "USA"
+                        };
+                        const name = feature.properties.name || feature.properties.NAME;
+                        if (nameToIso[name]) {
+                            data = electricityData.get(nameToIso[name]);
+                        }
+                    }
+                    
                     feature.properties.value = data ? data.value : null;
                 });
 
