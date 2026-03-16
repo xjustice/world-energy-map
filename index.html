@@ -127,6 +127,104 @@
             60% {transform: translateX(-50%) translateY(-5px);}
         }
 
+        /* Leaderboard Panel */
+        .leaderboard {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(30, 41, 59, 0.9);
+            backdrop-filter: blur(8px);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-color);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            width: 280px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .leaderboard h3 {
+            margin: 0 0 12px 0;
+            color: var(--accent-color);
+            font-size: 1.1rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 8px;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .tab-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--accent-color);
+            color: var(--text-color);
+            padding: 6px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            width: 48%;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active, .tab-btn:hover {
+            background: var(--accent-color);
+            color: #0f172a;
+            font-weight: bold;
+        }
+
+        .leaderboard-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .leaderboard-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-radius: 4px;
+        }
+
+        .leaderboard-list li:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .leaderboard-list li:last-child {
+            border-bottom: none;
+        }
+
+        .leaderboard-list .rank {
+            color: var(--accent-color);
+            font-weight: bold;
+            width: 24px;
+            font-size: 0.8rem;
+        }
+
+        .leaderboard-list .country {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-right: 8px;
+        }
+
+        .leaderboard-list .value {
+            font-family: monospace;
+            font-weight: bold;
+            color: #9ecae1;
+        }
+
         /* About Section Styles */
         .content-section {
             max-width: 900px;
@@ -321,6 +419,17 @@
     <div id="map-container" style="position: relative;">
         <div class="data-info" id="year-label">Loading Year...</div>
 
+        <div class="leaderboard">
+            <h3>🏆 Global Leaderboard</h3>
+            <div class="tabs">
+                <button class="tab-btn active" id="btn-top">Top 10 High</button>
+                <button class="tab-btn" id="btn-bottom">Top 10 Low</button>
+            </div>
+            <ul class="leaderboard-list" id="leaderboard-list">
+                <!-- Data will be populated here -->
+            </ul>
+        </div>
+
         <div class="header">
             <h1>Per Capita Electricity Consumption</h1>
             <p>Data Source: <a href="https://ourworldindata.org/energy" target="_blank">Our World in Data</a> (Kilowatt-hours)</p>
@@ -510,6 +619,53 @@
                     style: style,
                     onEachFeature: onEachFeature
                 }).addTo(map);
+
+                // Initialize Leaderboard
+                const validFeatures = geoData.features.filter(f => f.properties.value != null && f.properties.value > 0);
+                validFeatures.sort((a, b) => b.properties.value - a.properties.value);
+                
+                const top10 = validFeatures.slice(0, 10);
+                const bottom10 = validFeatures.slice().reverse().slice(0, 10);
+
+                const listEl = document.getElementById('leaderboard-list');
+                const btnTop = document.getElementById('btn-top');
+                const btnBottom = document.getElementById('btn-bottom');
+
+                function renderList(dataArr) {
+                    listEl.innerHTML = '';
+                    dataArr.forEach((f, idx) => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <span class="rank">#${idx + 1}</span>
+                            <span class="country" title="${f.properties.name || f.properties.NAME}">${f.properties.name || f.properties.NAME}</span>
+                            <span class="value">${Math.round(f.properties.value).toLocaleString()}</span>
+                        `;
+                        // Zoom on click
+                        li.onclick = () => {
+                            const layer = geojson.getLayers().find(l => l.feature === f);
+                            if (layer) {
+                                map.fitBounds(layer.getBounds(), { maxZoom: 4, animate: true, duration: 1 });
+                                highlightFeature({ target: layer });
+                                setTimeout(() => resetHighlight({ target: layer }), 2000);
+                            }
+                        };
+                        listEl.appendChild(li);
+                    });
+                }
+
+                renderList(top10); // initial load
+
+                btnTop.onclick = () => {
+                    btnTop.classList.add('active');
+                    btnBottom.classList.remove('active');
+                    renderList(top10);
+                };
+
+                btnBottom.onclick = () => {
+                    btnBottom.classList.add('active');
+                    btnTop.classList.remove('active');
+                    renderList(bottom10);
+                };
 
                 // Add Legend
                 const legend = L.control({ position: 'bottomleft' });
